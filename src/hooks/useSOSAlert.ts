@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from './useLocation';
@@ -18,7 +18,7 @@ export type SOSAlert = {
 
 export function useSOSAlert() {
   const { user } = useAuth();
-  const { getCurrentLocation,sendLocationToBackend, watchLocation, stopWatching } = useLocation();
+  const { getCurrentLocation, sendLocationToBackend, watchLocation, stopWatching } = useLocation();
   const [activeAlert, setActiveAlert] = useState<SOSAlert | null>(null);
   const [loading, setLoading] = useState(false);
   const watchIdRef = useRef<number | null>(null);
@@ -52,13 +52,26 @@ export function useSOSAlert() {
     setLoading(true);
     try {
       const location = await getCurrentLocation();
+      //save location by heartbeattttt
+      // await sendLocationToBackend(location, 'BROWSER');
+      await api.post("/api/location/heartbeat", {
+        lat: location.latitude,
+        lng: location.longitude,
+        accuracy: location.accuracy,
+        source: "BROWSER",
+      });
 
-      await sendLocationToBackend(location, 'BROWSER');
+      const res = await api.post("api/sos/start", {
+        triggerType: "MANUAL",
+      })
 
-      const res = await api.post('/sos/');
-
-      const sos = res.data;
-      setActiveAlert(sos);
+      setActiveAlert({
+        id: res.data.sosId,
+        status: "ACTIVE",
+        createdAt: new Date().toISOString(),
+        initial_latitude: res.data.location?.lat,
+        initial_longitude: res.data.location?.lng,
+      });
 
       startLocationTracking();
 
@@ -75,8 +88,18 @@ export function useSOSAlert() {
       stopWatching(watchIdRef.current);
     }
 
-    const watchId = watchLocation((coords: LocationCoords) => {
-      sendLocationToBackend(coords, 'AUTO');
+    const watchId = watchLocation(async (coords: LocationCoords) => {
+      // sendLocationToBackend(coords, 'AUTO');
+      try {
+        await api.post("/api/location/heartbeat", {
+          lat: coords.latitude,
+          lng: coords.longitude,
+          accuracy: coords.accuracy,
+          source: "AUTO",
+        });
+      } catch (e) {
+        console.error("heartbeat failed:", e);
+      }
     });
 
     if (watchId !== null) {
@@ -91,7 +114,7 @@ export function useSOSAlert() {
 
     setLoading(true);
     try {
-      await api.post('/sos/cancel', {
+      await api.post('/api/sos/cancel', {
         sosId: activeAlert.id,
         reason: 'user safe',
       })

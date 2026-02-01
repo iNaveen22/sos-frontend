@@ -28,7 +28,7 @@ export function useEmergencyContacts() {
 
     setLoading(true);
     try {
-      const res = await api.get("/");
+      const res = await api.get("/api/emergency-contacts/contacts");
       setContacts(res.data || []);
     } catch (error) {
       console.error('Error loading emergency contacts:', error);
@@ -50,7 +50,7 @@ export function useEmergencyContacts() {
     if (!user) return { error: new Error('User not authenticated') };
 
     try {
-      await api.post("/contacts", {
+      await api.post("/api/emergency-contacts/contacts", {
         user_id: user.id,
         name: data.name,
         phone: data.phone,
@@ -77,7 +77,7 @@ export function useEmergencyContacts() {
       priority: number;
     }) => {
     try {
-      await api.put(`/contacts/${id}`, {
+      await api.put(`/${id}`, {
         name: data.name,
         phone: data.phone,
         relationship: data.relationship,
@@ -95,7 +95,7 @@ export function useEmergencyContacts() {
 
   const deleteContact = async (id: string): Promise<{ error: Error | null }> => {
     try {
-      await api.delete(`/contacts/${id}`)
+      await api.delete(`/${id}`)
       await loadContacts();
       return { error: null };
     } catch (error) {
